@@ -1,127 +1,140 @@
-import React, { useState, createContext } from "react";
-import "./App.css";
-import Select from "react-select";
-import chroma from "chroma-js";
-import Grid from "./components/Grid";
-import Keyboard from "./components/Keyboard";
-import { gridDefault } from "./Words";
+import React, { useState, createContext, useEffect } from 'react';
+import Grid from './components/Grid';
+import './App.css';
 
 export const AppContext = createContext();
-  
+
+const initialGrid = [
+  ['', '', '', '', '', ''],
+  ['', '', '', '', '', ''],
+  ['', '', '', '', '', ''],
+  ['', '', '', '', '', ''],
+  ['', '', '', '', '', ''],
+  ['', '', '', '', '', ''],
+  ['', '', '', '', '', ''],
+  ['', '', '', '', '', '']
+];
+
 function App() {
-  
-  const size = 4;
-  const [entered, setEntered] = useState(false);
-  const [letters, setLetters] = useState('');
-  const [wordPathList, setWordPathList] = useState(null);
-  const [options, setOptions] = useState(null);
-  const [connections, setConnections] = useState(null);
-  const [grid, setGrid] = useState(gridDefault);
-  const [currPos, setCurrPos] = useState(0);
+  const [grid, setGrid] = useState(initialGrid);
+  const [spanagramPathList, setSpanagramPathList] = useState([]);
+  const [currentSpanagramIndex, setCurrentSpanagramIndex] = useState(0);
+  const [wordPathList, setWordPathList] = useState([]);
+  const [currentWordIndex, setCurrentWordIndex] = useState(0);
+  const [connections, setConnections] = useState([]);
 
-  function handleKey(key) {
-    if (currPos > Math.pow(size, 2) || entered)  return;
-    if (key == "Enter") {
-      if (currPos !== 16) return; 
-      handleEnter();
-    } else if (key == "Backspace") {
-      if (currPos === 0) return;
-      const newGrid = [...grid];
-      const pos = currPos - 1
-      newGrid[Math.floor(pos / size)][pos % size] = "";
-      setLetters(letters.slice(0, -1));
-      setGrid(newGrid);
-      setCurrPos(currPos - 1);
-    } else if (key.toLowerCase() !== key.toUpperCase() && key.length === 1 && currPos !== Math.pow(size, 2)) {
-      const newGrid = [...grid];
-      newGrid[Math.floor(currPos / size)][currPos % size] = key.toUpperCase();
-      setLetters(letters + key.toUpperCase());
-      setGrid(newGrid);
-      setCurrPos(currPos + 1);
+  useEffect(() => {
+    if (spanagramPathList.length === 0) {
+      return;
     }
-  }
-
-  function handleEnter() {
-    if (letters.length !== Math.pow(size, 2)) return;
-    fetch(`/solve?input_value=${letters}`)
-      .then(response => response.json())
-      .then(data => {
-        setWordPathList(data);
-        setOptions(data.map(item => (
-          {value: item.id, label: item.word}
-          )));
-      })
-      .catch(error => console.error(error)); 
-    setEntered(true);
-  }
-
-  function handleChange(event) {
-    const path = wordPathList[event.value].path;
-    
+    const path = spanagramPathList[currentSpanagramIndex].path;
     const newConnections = [];
     var prev = path[0];
+
     for (let i = 1; i < path.length; i++) {
       newConnections.push([prev, path[i]]);
       prev = path[i];
     }
     setConnections(newConnections);
-  }
-  
+  }, [spanagramPathList, currentSpanagramIndex])
 
-  const styles = {
-    control: styles => ({ ...styles, backgroundColor: "white"}),
-    option: (styles, { isFocused, isSelected }) => ({
-      ...styles,
-      backgroundColor: 
-        isSelected ? "blue" :
-        isFocused ? chroma("blue").alpha(0.3).css() :
-        undefined,
-      color:
-        isSelected ? "white" :
-        "black"
-    }),
-
-    singleValue: (styles, state) => ({
-      ...styles,
-      color:"black"
-    })
+  function handleLetterChange(row, col, letter) {
+    const newGrid = grid.map((gridRow, rowIndex) =>
+      gridRow.map((gridCol, colIndex) =>
+        rowIndex === row && colIndex === col ? letter : gridCol
+      )
+    );
+    setGrid(newGrid);
   }
 
-  return(
+  function handleSolve()  {
+    // Replace with your actual API endpoint
+    // const response = await fetch('https://api.example.com/solve', {
+    //   method: 'POST',
+    //   headers: {
+    //     'Content-Type': 'application/json'
+    //   },
+    //   body: JSON.stringify({ grid })
+    // });
+    // const data = await response.json();
+    let letters = '';
+    for (let row of grid) {
+      letters += row.join('');
+    }
+    fetch(`/solve?input_value=${letters}`)
+      .then(response => response.json())
+      .then(data => {
+        setSpanagramPathList(data);
+        setCurrentSpanagramIndex(0);
+      })
+      .catch(error => console.error(error));
+    
+  }
+
+  function handleSpanagramFeedback(isCorrect) {
+    const currentSpanagram = spanagramPathList[currentSpanagramIndex];
+
+    const newPath = [];
+    var prev = "";
+
+    if (isCorrect) {
+      // Make another API call given the grid and the correct spanagram
+      // const response = await fetch('https://api.example.com/words', {
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json'
+      //   },
+      //   body: JSON.stringify({ grid, spanagram: currentSpanagram })
+      // });
+      // const data = await response.json();
+      // setPotentialWords(['ex1', 'ex2', 'ex3']);
+    } else {
+      // Move to the next spanagram
+      setCurrentSpanagramIndex((prevIndex) => prevIndex + 1);
+    }
+  }
+
+  return (
     <div className="App">
-      <nav>
-        <h1>Word Hunt Solver</h1>
-      </nav>
 
       <AppContext.Provider 
         value={{ 
           grid, 
           setGrid,
-          handleKey,
-          size,
-          connections
+          connections, 
+          handleLetterChange,
         }}
       >
-        <div className="main">
-          <Grid />
-          <Keyboard />
-          <div className="select">
-            {wordPathList && 
-              <Select 
-                options={options}
-                onChange={handleChange}
-                styles={styles}
-                closeMenuOnSelect={false}
-                menuShouldScrollIntoView={false}
-            />}
-          </div>
-        </div>
-      </AppContext.Provider>
-      
-      
-    </div>
 
-  ) 
-}
-  
+        <div className="grid-container">
+          <h1>NYT Strands Grid Solver</h1>
+          <Grid />
+        </div>
+        
+        <div className="controls">
+          <button onClick={handleSolve}>Solve Grid</button>
+        </div>
+        {spanagramPathList.length > 0 && currentSpanagramIndex < spanagramPathList.length && (
+          <div className="spanagram-item">
+            <h2>Possible Spanagram</h2>
+            <span>{spanagramPathList[currentSpanagramIndex].word}</span>
+            <button onClick={() => handleSpanagramFeedback(true)}>Correct</button>
+            <button onClick={() => handleSpanagramFeedback(false)}>Incorrect</button>
+          </div>
+        )}
+        {wordPathList.length > 0 && currentWordIndex < wordPathList.length && (
+          <div className="word-item">
+            <h2>Possible Word</h2>
+            <span>{wordPathList[currentSpanagramIndex].word}</span>
+            {/* <button onClick={() => handleSpanagramFeedback(true)}>Correct</button>
+            <button onClick={() => handleSpanagramFeedback(false)}>Incorrect</button> */}
+          </div>
+        )}
+
+      </AppContext.Provider>
+
+    </div>
+  );
+};
+
 export default App;

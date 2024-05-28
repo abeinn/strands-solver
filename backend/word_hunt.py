@@ -15,7 +15,11 @@ for word in words:
         root.add(word)
 
 # Return a mapping of valid words to the path to form the word
-def solve(letters: str):
+def solve(grid):
+    letters = ""
+    for col in grid:
+        for c in col:
+            letters += c 
     length = len(letters)
     gridSize = int(length ** 0.5)
 
